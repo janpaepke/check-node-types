@@ -1,65 +1,69 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import type { CheckResult } from './types.js';
-import { getMinMajorFromRange, getMajorFromSpecifier } from './version-utils.js';
+import type { CheckResult, VersionSource } from './types.js';
+import { readNodeVersion, getMajorFromSpecifier, sourceLabel } from './version-utils.js';
 
-export function check(dir: string): CheckResult {
-  const pkgPath = resolve(dir, 'package.json');
-  let pkg: Record<string, unknown>;
+export interface CheckOptions {
+  packagePath: string;
+  source: VersionSource;
+}
 
-  try {
-    pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
-  } catch {
-    return {
-      status: 'warn',
-      enginesNode: { raw: null, minMajor: null },
-      typesNode: { raw: null, major: null, location: null },
-      message: `Could not read or parse ${pkgPath}`,
-      fix: null,
-    };
-  }
+export function check({ packagePath, source }: CheckOptions): CheckResult {
+  // Read target Node.js version from the chosen source
+  const nodeVersion = readNodeVersion(packagePath, source);
+  const label = sourceLabel(source);
 
-  // Extract engines.node
-  const engines = pkg.engines as Record<string, string> | undefined;
-  const enginesNodeRaw = engines?.node ?? null;
-  const minMajor = enginesNodeRaw ? getMinMajorFromRange(enginesNodeRaw) : null;
-
-  // Extract @types/node — check devDependencies first, then dependencies
+  // Read @types/node from package.json
   let typesNodeRaw: string | null = null;
   let typesLocation: 'devDependencies' | 'dependencies' | null = null;
 
-  const devDeps = pkg.devDependencies as Record<string, string> | undefined;
-  const deps = pkg.dependencies as Record<string, string> | undefined;
+  try {
+    const pkg = JSON.parse(readFileSync(packagePath, 'utf-8'));
+    const devDeps = pkg.devDependencies as Record<string, string> | undefined;
+    const deps = pkg.dependencies as Record<string, string> | undefined;
 
-  if (devDeps?.['@types/node']) {
-    typesNodeRaw = devDeps['@types/node'];
-    typesLocation = 'devDependencies';
-  } else if (deps?.['@types/node']) {
-    typesNodeRaw = deps['@types/node'];
-    typesLocation = 'dependencies';
+    if (devDeps?.['@types/node']) {
+      typesNodeRaw = devDeps['@types/node'];
+      typesLocation = 'devDependencies';
+    } else if (deps?.['@types/node']) {
+      typesNodeRaw = deps['@types/node'];
+      typesLocation = 'dependencies';
+    }
+  } catch {
+    return {
+      status: 'warn',
+      source,
+      nodeVersion: { raw: null, major: null },
+      typesNode: { raw: null, major: null, location: null },
+      message: `Could not read or parse ${packagePath}`,
+      fix: null,
+    };
   }
 
   const typesNodeMajor = typesNodeRaw ? getMajorFromSpecifier(typesNodeRaw) : null;
 
   // Neither field present
-  if (!enginesNodeRaw && !typesNodeRaw) {
+  if (!nodeVersion.raw && !typesNodeRaw) {
     return {
       status: 'warn',
-      enginesNode: { raw: null, minMajor: null },
+      source,
+      nodeVersion,
       typesNode: { raw: null, major: null, location: null },
-      message: 'Neither "engines.node" nor "@types/node" found in package.json.',
+      message: `Neither ${label} nor @types/node found.`,
       fix: null,
     };
   }
 
-  // Missing engines.node
-  if (!enginesNodeRaw) {
+  // Missing node version source
+  if (!nodeVersion.raw) {
     return {
       status: 'warn',
-      enginesNode: { raw: null, minMajor: null },
+      source,
+      nodeVersion,
       typesNode: { raw: typesNodeRaw, major: typesNodeMajor, location: typesLocation },
-      message: 'No "engines.node" field found. Cannot verify @types/node compatibility.',
-      fix: 'Add "engines": { "node": ">=XX" } to your package.json.',
+      message: `No ${label} found. Cannot verify @types/node compatibility.`,
+      fix: source === 'engines'
+        ? 'Add "engines": { "node": ">=XX" } to your package.json.'
+        : null,
     };
   }
 
@@ -67,20 +71,22 @@ export function check(dir: string): CheckResult {
   if (!typesNodeRaw) {
     return {
       status: 'warn',
-      enginesNode: { raw: enginesNodeRaw, minMajor },
+      source,
+      nodeVersion,
       typesNode: { raw: null, major: null, location: null },
       message: '@types/node is not installed. Cannot verify compatibility.',
-      fix: minMajor ? `npm install -D @types/node@^${minMajor}` : null,
+      fix: nodeVersion.major ? `npm install -D @types/node@^${nodeVersion.major}` : null,
     };
   }
 
-  // Could not parse engines.node
-  if (minMajor === null) {
+  // Could not parse node version
+  if (nodeVersion.major === null) {
     return {
       status: 'warn',
-      enginesNode: { raw: enginesNodeRaw, minMajor: null },
+      source,
+      nodeVersion,
       typesNode: { raw: typesNodeRaw, major: typesNodeMajor, location: typesLocation },
-      message: `Could not parse minimum version from engines.node: "${enginesNodeRaw}"`,
+      message: `Could not parse version from ${label}: "${nodeVersion.raw}"`,
       fix: null,
     };
   }
@@ -89,7 +95,8 @@ export function check(dir: string): CheckResult {
   if (typesNodeMajor === null) {
     return {
       status: 'warn',
-      enginesNode: { raw: enginesNodeRaw, minMajor },
+      source,
+      nodeVersion,
       typesNode: { raw: typesNodeRaw, major: null, location: typesLocation },
       message: `Could not parse major version from @types/node: "${typesNodeRaw}"`,
       fix: null,
@@ -97,21 +104,23 @@ export function check(dir: string): CheckResult {
   }
 
   // Both parsed — compare
-  if (minMajor === typesNodeMajor) {
+  if (nodeVersion.major === typesNodeMajor) {
     return {
       status: 'pass',
-      enginesNode: { raw: enginesNodeRaw, minMajor },
+      source,
+      nodeVersion,
       typesNode: { raw: typesNodeRaw, major: typesNodeMajor, location: typesLocation },
-      message: `@types/node major (${typesNodeMajor}) matches engines.node minimum major (${minMajor}).`,
+      message: `@types/node major (${typesNodeMajor}) matches ${label} major (${nodeVersion.major}).`,
       fix: null,
     };
   }
 
   return {
     status: 'fail',
-    enginesNode: { raw: enginesNodeRaw, minMajor },
+    source,
+    nodeVersion,
     typesNode: { raw: typesNodeRaw, major: typesNodeMajor, location: typesLocation },
-    message: `@types/node major (${typesNodeMajor}) does not match engines.node minimum major (${minMajor}).`,
-    fix: `npm install -D @types/node@^${minMajor}`,
+    message: `@types/node major (${typesNodeMajor}) does not match ${label} major (${nodeVersion.major}).`,
+    fix: `npm install -D @types/node@^${nodeVersion.major}`,
   };
 }

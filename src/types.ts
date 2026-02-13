@@ -1,8 +1,11 @@
+export type VersionSource = 'engines' | 'volta' | 'nvmrc' | 'node-version';
+
 export interface CheckResult {
   status: 'pass' | 'fail' | 'warn';
-  enginesNode: {
+  source: VersionSource;
+  nodeVersion: {
     raw: string | null;
-    minMajor: number | null;
+    major: number | null;
   };
   typesNode: {
     raw: string | null;
@@ -14,8 +17,10 @@ export interface CheckResult {
 }
 
 export interface CliOptions {
-  path: string;
+  package: string;
+  source: VersionSource;
   json: boolean;
-  verbose: boolean;
+  print: boolean;
+  quiet: boolean;
   color: boolean;
 }

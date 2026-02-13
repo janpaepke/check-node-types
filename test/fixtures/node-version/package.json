@@ -1,0 +1,4 @@
+{
+  "name": "fixture-node-version",
+  "devDependencies": { "@types/node": "^20.0.0" }
+}

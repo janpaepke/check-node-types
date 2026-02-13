@@ -1,0 +1,4 @@
+{
+  "name": "fixture-nvmrc-v-prefix",
+  "devDependencies": { "@types/node": "^20.0.0" }
+}

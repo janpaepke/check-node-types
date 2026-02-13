@@ -2,45 +2,40 @@ import { describe, it, expect } from 'vitest';
 import { formatResult, formatJson } from '../src/output.js';
 import type { CheckResult, CliOptions } from '../src/types.js';
 
-const baseOptions: CliOptions = { path: '.', json: false, verbose: false, color: false };
+const baseOptions: CliOptions = { package: '.', source: 'engines', json: false, print: false, quiet: false, color: false };
 
 const passResult: CheckResult = {
   status: 'pass',
-  enginesNode: { raw: '>=20', minMajor: 20 },
+  source: 'engines',
+  nodeVersion: { raw: '>=20', major: 20 },
   typesNode: { raw: '^20.11.0', major: 20, location: 'devDependencies' },
-  message: '@types/node major (20) matches engines.node minimum major (20).',
+  message: '@types/node major (20) matches engines.node major (20).',
   fix: null,
 };
 
 const failResult: CheckResult = {
   status: 'fail',
-  enginesNode: { raw: '>=20', minMajor: 20 },
+  source: 'engines',
+  nodeVersion: { raw: '>=20', major: 20 },
   typesNode: { raw: '^22.1.0', major: 22, location: 'devDependencies' },
-  message: '@types/node major (22) does not match engines.node minimum major (20).',
+  message: '@types/node major (22) does not match engines.node major (20).',
   fix: 'npm install -D @types/node@^20',
 };
 
 const warnResult: CheckResult = {
   status: 'warn',
-  enginesNode: { raw: null, minMajor: null },
+  source: 'engines',
+  nodeVersion: { raw: null, major: null },
   typesNode: { raw: '^20.0.0', major: 20, location: 'devDependencies' },
-  message: 'No "engines.node" field found. Cannot verify @types/node compatibility.',
+  message: 'No engines.node found. Cannot verify @types/node compatibility.',
   fix: 'Add "engines": { "node": ">=XX" } to your package.json.',
 };
 
 describe('formatResult', () => {
-  it('shows single line for pass without verbose', () => {
+  it('shows single line for pass', () => {
     const output = formatResult(passResult, baseOptions);
     expect(output).toContain('PASS');
     expect(output.split('\n')).toHaveLength(1);
-  });
-
-  it('shows version details for pass with verbose', () => {
-    const output = formatResult(passResult, { ...baseOptions, verbose: true });
-    expect(output).toContain('PASS');
-    expect(output).toContain('engines.node: >=20');
-    expect(output).toContain('@types/node:  ^20.11.0');
-    expect(output).toContain('minimum major: 20');
   });
 
   it('shows both majors and fix for fail', () => {
@@ -68,6 +63,36 @@ describe('formatResult', () => {
     const output = formatResult(failResult, { ...baseOptions, color: true });
     expect(output).toMatch(/\x1b\[/);
   });
+
+  it('returns empty string for pass in quiet mode', () => {
+    const output = formatResult(passResult, { ...baseOptions, quiet: true });
+    expect(output).toBe('');
+  });
+
+  it('still shows output for fail in quiet mode', () => {
+    const output = formatResult(failResult, { ...baseOptions, quiet: true });
+    expect(output).toContain('FAIL');
+  });
+
+  it('shows detected versions in print mode', () => {
+    const output = formatResult(passResult, { ...baseOptions, print: true });
+    expect(output).toContain('engines.node');
+    expect(output).toContain('>=20');
+    expect(output).toContain('@types/node');
+    expect(output).toContain('^20.11.0');
+    expect(output).not.toContain('PASS');
+  });
+
+  it('shows "not found" in print mode when values are missing', () => {
+    const output = formatResult(warnResult, { ...baseOptions, print: true });
+    expect(output).toContain('not found');
+  });
+
+  it('uses correct source label for volta', () => {
+    const voltaResult: CheckResult = { ...failResult, source: 'volta' };
+    const output = formatResult(voltaResult, baseOptions);
+    expect(output).toContain('volta.node');
+  });
 });
 
 describe('formatJson', () => {
@@ -75,7 +100,7 @@ describe('formatJson', () => {
     const output = formatJson(failResult);
     const parsed = JSON.parse(output);
     expect(parsed.status).toBe('fail');
-    expect(parsed.enginesNode.minMajor).toBe(20);
+    expect(parsed.nodeVersion.major).toBe(20);
     expect(parsed.typesNode.major).toBe(22);
     expect(parsed.fix).toBe('npm install -D @types/node@^20');
   });

@@ -12,7 +12,8 @@
 
 ## The Problem
 
-`@types/node` major versions map directly to Node.js releases: `@types/node@22` provides types for Node.js 22. If your project targets Node 20 but `@types/node` is `^22`, TypeScript will happily let you use Node 22 APIs that don't exist at runtime.
+`@types/node` major versions map directly to Node.js releases: `@types/node@22` provides types for Node.js 22.  
+If your project targets Node 20 but `@types/node` is `^22`, TypeScript will happily let you use Node 22 APIs that don't exist at runtime.
 
 No existing linter, ESLint plugin, or package manager catches this drift. We searched. Extensively.
 
@@ -20,17 +21,17 @@ No existing linter, ESLint plugin, or package manager catches this drift. We sea
 
 We evaluated every existing tool. None solve this.
 
-| Tool | What it does | Why it's not enough |
-|---|---|---|
-| **Dependabot** | Bumps `@types/node` to latest | [Cannot update `engines.node`](https://github.com/dependabot/dependabot-core/issues/1655). Will bump `@types/node` past your target. |
-| **Renovate** | Can group `engines.node` + `@types/node` PRs | Groups updates but doesn't *verify* the majors match. Drift still possible from manual edits. |
-| **syncpack** | Enforces consistent versions across monorepos | Cannot cross-reference `engines` with `devDependencies`. |
-| **npm-package-json-lint** | Validates package.json fields | Has `valid-values-engines` but no cross-field comparison with dependency versions. |
-| **eslint-plugin-package-json** | Lints package.json | Has `require-engines` but nothing for dependency-to-engine consistency. |
-| **ls-engines** | Checks dependency tree engine compatibility | Checks engine *requirements*, not `@types/node` alignment. |
-| **check-engine** / **check-node-version** | Validates the running Node.js version | Checks the *runtime*, not the *type definitions*. |
-| **@tsconfig/node** bases | Sets `target`/`module` for a Node version | Doesn't set or validate `@types/node`. Using `@tsconfig/node20` with `@types/node@24` produces no error. |
-| **Shell one-liners** | Custom CI scripts | Work, but no standard solution — every team reinvents the wheel. |
+| Tool                                      | What it does                                  | Why it's not enough                                                                                                                  |
+| ----------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| **Dependabot**                            | Bumps `@types/node` to latest                 | [Cannot update `engines.node`](https://github.com/dependabot/dependabot-core/issues/1655). Will bump `@types/node` past your target. |
+| **Renovate**                              | Can group `engines.node` + `@types/node` PRs  | Groups updates but doesn't _verify_ the majors match. Drift still possible from manual edits.                                        |
+| **syncpack**                              | Enforces consistent versions across monorepos | Cannot cross-reference `engines` with `devDependencies`.                                                                             |
+| **npm-package-json-lint**                 | Validates package.json fields                 | Has `valid-values-engines` but no cross-field comparison with dependency versions.                                                   |
+| **eslint-plugin-package-json**            | Lints package.json                            | Has `require-engines` but nothing for dependency-to-engine consistency.                                                              |
+| **ls-engines**                            | Checks dependency tree engine compatibility   | Checks engine _requirements_, not `@types/node` alignment.                                                                           |
+| **check-engine** / **check-node-version** | Validates the running Node.js version         | Checks the _runtime_, not the _type definitions_.                                                                                    |
+| **@tsconfig/node** bases                  | Sets `target`/`module` for a Node version     | Doesn't set or validate `@types/node`. Using `@tsconfig/node20` with `@types/node@24` produces no error.                             |
+| **Shell one-liners**                      | Custom CI scripts                             | Work, but no standard solution — every team reinvents the wheel.                                                                     |
 
 The gap is well-documented: [DefinitelyTyped Discussion #69418](https://github.com/DefinitelyTyped/DefinitelyTyped/discussions/69418) is the canonical thread where maintainers and users discuss the lack of tooling for this.
 
@@ -38,10 +39,10 @@ The gap is well-documented: [DefinitelyTyped Discussion #69418](https://github.c
 
 `check-node-types` is designed as a **companion to [`check-node-version`](https://www.npmjs.com/package/check-node-version)**. Together they cover both sides of the Node.js version problem:
 
-| Tool | What it checks |
-|---|---|
+| Tool                 | What it checks                              |
+| -------------------- | ------------------------------------------- |
 | `check-node-version` | Is the **running** Node.js version correct? |
-| `check-node-types` | Is the **`@types/node` version** correct? |
+| `check-node-types`   | Is the **`@types/node` version** correct?   |
 
 The recommended approach:
 
@@ -94,9 +95,9 @@ check-node-types --json
 
 ```json
 {
-  "scripts": {
-    "check-types": "check-node-types"
-  }
+	"scripts": {
+		"check-types": "check-node-types"
+	}
 }
 ```
 
@@ -120,39 +121,39 @@ RUN npm ci
 
 ```json
 {
-  "lint-staged": {
-    "package.json": ["check-node-types"]
-  }
+	"lint-staged": {
+		"package.json": ["check-node-types"]
+	}
 }
 ```
 
 ## Options
 
-| Flag | Short | Description | Default |
-|---|---|---|---|
-| `--source <source>` | | Where to read the Node.js version (see below) | `engines` |
-| `--package <path>` | | Path to package.json | `./package.json` |
-| `--print` | | Print detected versions and exit | |
-| `--quiet` | `-q` | Only output on error | |
-| `--json` | | Output as JSON | |
-| `--no-color` | | Disable colored output | auto-detect |
+| Flag                | Short | Description                                   | Default          |
+| ------------------- | ----- | --------------------------------------------- | ---------------- |
+| `--source <source>` |       | Where to read the Node.js version (see below) | `engines`        |
+| `--package <path>`  |       | Path to package.json                          | `./package.json` |
+| `--print`           |       | Print detected versions and exit              |                  |
+| `--quiet`           | `-q`  | Only output on error                          |                  |
+| `--json`            |       | Output as JSON                                |                  |
+| `--no-color`        |       | Disable colored output                        | auto-detect      |
 
 ### Version Sources
 
-| Source | Reads from |
-|---|---|
-| `engines` | `engines.node` in package.json |
-| `volta` | `volta.node` in package.json |
-| `nvmrc` | `.nvmrc` file in same directory as package.json |
+| Source         | Reads from                                             |
+| -------------- | ------------------------------------------------------ |
+| `engines`      | `engines.node` in package.json                         |
+| `volta`        | `volta.node` in package.json                           |
+| `nvmrc`        | `.nvmrc` file in same directory as package.json        |
 | `node-version` | `.node-version` file in same directory as package.json |
 
 ## Exit Codes
 
-| Code | Meaning |
-|---|---|
-| `0` | Pass — versions match |
-| `1` | Fail — major version mismatch |
-| `2` | Warning — missing version source, missing `@types/node`, or unparseable versions |
+| Code | Meaning                                                                          |
+| ---- | -------------------------------------------------------------------------------- |
+| `0`  | Pass — versions match                                                            |
+| `1`  | Fail — major version mismatch                                                    |
+| `2`  | Warning — missing version source, missing `@types/node`, or unparseable versions |
 
 ## Example Output
 

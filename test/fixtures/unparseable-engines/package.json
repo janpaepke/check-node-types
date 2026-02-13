@@ -1,0 +1,5 @@
+{
+  "name": "fixture-unparseable-engines",
+  "engines": { "node": "not-a-version" },
+  "devDependencies": { "@types/node": "^20.0.0" }
+}

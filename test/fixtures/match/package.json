@@ -1,0 +1,5 @@
+{
+  "name": "fixture-match",
+  "engines": { "node": ">=20" },
+  "devDependencies": { "@types/node": "^20.11.0" }
+}

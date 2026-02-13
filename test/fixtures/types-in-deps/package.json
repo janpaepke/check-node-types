@@ -1,0 +1,5 @@
+{
+  "name": "fixture-types-in-deps",
+  "engines": { "node": ">=20" },
+  "dependencies": { "@types/node": "^20.0.0" }
+}

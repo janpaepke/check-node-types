@@ -1,0 +1,5 @@
+{
+  "name": "fixture-mismatch",
+  "engines": { "node": ">=20" },
+  "devDependencies": { "@types/node": "^22.1.0" }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "fixture-both-deps",
+  "engines": { "node": ">=20" },
+  "dependencies": { "@types/node": "^22.0.0" },
+  "devDependencies": { "@types/node": "^20.0.0" }
+}

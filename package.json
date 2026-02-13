@@ -1,6 +1,6 @@
 {
   "name": "check-node-types",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Verify @types/node major version matches your engines.node minimum",
   "type": "module",
   "bin": {
